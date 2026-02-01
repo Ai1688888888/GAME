@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>甲蟲王者：晶湛牙醫祝賀版</title>
+    <style>
+        :root {
+            --gold: #f1c40f;
+            --p1-color: #2ecc71;
+            --p2-color: #e74c3c;
+        }
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            background: #050805;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: "Microsoft JhengHei", sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 80px rgba(0,0,0,0.9);
+            border-radius: 15px;
+            overflow: hidden;
+            width: 95vw;
+            max-width: 800px;
+            aspect-ratio: 2 / 1;
+            background: #1b3022;
+        }
+
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #menu {
+            pointer-events: auto;
+            background: rgba(0,0,0,0.95);
+            padding: 30px;
+            border: 3px solid var(--gold);
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(241, 196, 15, 0.5);
+            z-index: 2000;
+        }
+
+        .start-btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #3e2723;
+            color: white;
+            border: 2px solid var(--gold);
+            border-radius: 12px;
+            pointer-events: auto;
+            margin-top: 15px;
+            transition: transform 0.1s;
+        }
+        .start-btn:active { transform: scale(0.95); }
+
+        #game-stats {
+            position: absolute;
+            top: 15px;
+            width: 90%;
+            display: none;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .bar-container { width: 35%; text-align: center; }
+        .bar-bg { width: 100%; height: 12px; background: #222; border: 1px solid #fff; border-radius: 6px; overflow: hidden; }
+        .stamina-fill { height: 100%; width: 100%; transition: width 0.1s; }
+        #p1-stamina { background: var(--p1-color); }
+        #p2-stamina { background: var(--p2-color); }
+
+        .score-dots { display: flex; gap: 5px; justify-content: center; margin-top: 5px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; border: 1px solid #888; }
+        .dot.win { background: var(--gold); box-shadow: 0 0 5px var(--gold); }
+
+        .touch-controls {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 70%;
+            display: none;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .touch-zone {
+            width: 40%;
+            height: 100%;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+        }
+
+        .btn-push {
+            width: 70px;
+            height: 70px;
+            background: rgba(255,255,255,0.15);
+            border: 3px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        #rps-overlay {
+            position: absolute;
+            display: none;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1500;
+        }
+
+        .rps-btn {
+            width: 65px; height: 65px; background: #444; border: 2px solid white; border-radius: 12px;
+            font-size: 30px; display: flex; align-items: center; justify-content: center;
+            pointer-events: auto;
+        }
+
+        #msg {
+            position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 24px; color: var(--gold); background: rgba(0,0,0,0.95);
+            padding: 25px 45px; border: 3px solid var(--gold); border-radius: 15px;
+            z-index: 3000; display: none; text-align: center;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            min-width: 320px;
+        }
+
+        .congrats-line {
+            display: block;
+            color: #fff;
+            font-size: 20px; 
+            margin-bottom: 15px;
+            text-shadow: 0 0 8px var(--gold);
+            white-space: nowrap; 
+        }
+
+        .credit {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 0.8px;
+            pointer-events: none;
+            z-index: 50;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        
+        <div id="ui-overlay">
+            <!-- 更新後的署名加上年份 -->
+            <div class="credit">Game by Chien-Po Fu @ 2026</div>
+
+            <div id="menu">
+                <h2 style="color:var(--gold); margin:0;">甲蟲王者：三戰兩勝</h2>
+                <div style="display:flex; gap: 10px; margin-top:20px;">
+                    <button class="start-btn" onpointerdown="startWithMode('PVE')">單人挑戰</button>
+                    <button class="start-btn" onpointerdown="startWithMode('PVP')">雙人對決</button>
+                </div>
+            </div>
+
+            <div id="game-stats">
+                <div class="bar-container">
+                    <div class="bar-bg"><div id="p1-stamina" class="stamina-fill"></div></div>
+                    <div id="p1-stocks" style="font-size:12px; margin-top:5px;">💨 x0</div>
+                    <div class="score-dots" id="p1-dots">
+                        <div class="dot"></div><div class="dot"></div>
+                    </div>
+                </div>
+                <div id="timer-display" style="font-size:22px; color:var(--gold); font-weight:bold;">5.0s</div>
+                <div class="bar-container">
+                    <div class="bar-bg"><div id="p2-stamina" class="stamina-fill"></div></div>
+                    <div id="p2-stocks" style="font-size:12px; margin-top:5px;">💨 x0</div>
+                    <div class="score-dots" id="p2-dots">
+                        <div class="dot"></div><div class="dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="touch-controls" class="touch-controls">
+                <div class="touch-zone">
+                    <div class="btn-push" style="border-color: var(--p1-color);" onpointerdown="p1Push()">👊</div>
+                    <div class="btn-push" style="border-color: var(--p1-color); font-size:18px;" onpointerdown="p1Skill()">💨絕</div>
+                </div>
+                <div class="touch-zone" id="p2-touch-zone" style="align-items: flex-end;">
+                    <div class="btn-push" style="border-color: var(--p2-color);" onpointerdown="p2Push()">👊</div>
+                    <div class="btn-push" style="border-color: var(--p2-color); font-size:18px;" onpointerdown="p2Skill()">💨絕</div>
+                </div>
+            </div>
+
+            <div id="rps-overlay">
+                <div id="rps-countdown-ui" style="font-size:60px; color:var(--gold); margin-bottom:20px; font-weight:bold;">2.0</div>
+                <div style="display:flex; justify-content:space-around; width:100%;">
+                    <div>
+                        <div style="color:var(--p1-color); text-align:center; font-weight:bold;">P1</div>
+                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px;">
+                            <div class="rps-btn" onpointerdown="setChoice(1, '✂️')">✂️</div>
+                            <div class="rps-btn" onpointerdown="setChoice(1, '🪨')">🪨</div>
+                            <div class="rps-btn" onpointerdown="setChoice(1, '📜')">📜</div>
+                        </div>
+                    </div>
+                    <div id="p2-rps-ui">
+                        <div style="color:var(--p2-color); text-align:center; font-weight:bold;">P2</div>
+                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px;">
+                            <div class="rps-btn" onpointerdown="setChoice(2, '✂️')">✂️</div>
+                            <div class="rps-btn" onpointerdown="setChoice(2, '🪨')">🪨</div>
+                            <div class="rps-btn" onpointerdown="setChoice(2, '📜')">📜</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="msg"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let audioCtx;
+        let state = 'MENU'; 
+        let gameMode = 'PVP'; 
+        let pos = 400; 
+        let shake = 0;
+        let lastTime = 0;
+        let animationId;
+        
+        const LOG_WIDTH = 650; 
+        const LOG_START = (800 - LOG_WIDTH) / 2;
+        const LOG_END = LOG_START + LOG_WIDTH;
+        const BEETLE_OFFSET = 75; 
+
+        // 核心玩家狀態
+        let p1 = { stamina: 100, skillStocks: 1, choice: null, wins: 0, yOffset: 0, rotation: 0, falling: false };
+        let p2 = { stamina: 100, skillStocks: 1, choice: null, wins: 0, yOffset: 0, rotation: 0, falling: false };
+        
+        const RPS_INTERVAL = 5000; 
+        let rpsTimer = RPS_INTERVAL;
+        let rpsDecisionTimer = 2000; 
+
+        const STOCK_AUTO_REFILL_INTERVAL = 5000;
+        let stockTimer = 0;
+
+        let bananas = [];
+        let bananaTimer = 0;
+        let particles = []; 
+        let fartParticles = [];
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playHitSound() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playFartSound() {
+            if(!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(120, now);
+            osc.frequency.linearRampToValueAtTime(40, now + 0.4);
+            const lfo = audioCtx.createOscillator();
+            lfo.frequency.value = 25;
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 30;
+            lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
+            lfo.start();
+            g.gain.setValueAtTime(0.3, now);
+            g.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(now + 0.4); lfo.stop(now + 0.4);
+        }
+
+        function playFallSound() {
+            if(!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
+            g.gain.setValueAtTime(0.2, now);
+            g.gain.linearRampToValueAtTime(0, now + 0.8);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(now + 0.8);
+        }
+
+        function playVictoryFanfare() {
+            if(!audioCtx) return;
+            const now = audioCtx.currentTime;
+            [440, 554, 659, 880].forEach((f, i) => {
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = 'square';
+                o.frequency.setValueAtTime(f, now + i*0.15);
+                g.gain.setValueAtTime(0.05, now + i*0.15);
+                g.gain.exponentialRampToValueAtTime(0.001, now + i*0.15 + 0.4);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(now + i*0.15); o.stop(now + i*0.15 + 0.5);
+            });
+        }
+
+        function startWithMode(mode) {
+            gameMode = mode;
+            initAudio();
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('touch-controls').style.display = 'flex';
+            document.getElementById('game-stats').style.display = 'flex';
+            document.getElementById('p2-rps-ui').style.display = (mode === 'PVE') ? 'none' : 'block';
+            document.getElementById('p2-touch-zone').style.visibility = (mode === 'PVE') ? 'hidden' : 'visible';
+            
+            p1.wins = 0; p2.wins = 0;
+            p1.skillStocks = 1; p2.skillStocks = 1;
+            stockTimer = 0;
+            updateScoreUI();
+            resetRound();
+            
+            lastTime = performance.now();
+            if (animationId) cancelAnimationFrame(animationId);
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function restartGame() {
+            state = 'MENU';
+            document.getElementById('menu').style.display = 'block';
+            document.getElementById('touch-controls').style.display = 'none';
+            document.getElementById('game-stats').style.display = 'none';
+            document.getElementById('msg').style.display = 'none';
+            document.getElementById('rps-overlay').style.display = 'none';
+            
+            pos = 400;
+            p1.yOffset = 0; p1.rotation = 0; p1.falling = false;
+            p2.yOffset = 0; p2.rotation = 0; p2.falling = false;
+            particles = [];
+            bananas = [];
+            fartParticles = [];
+        }
+
+        function resetRound() {
+            state = 'PLAYING';
+            pos = 400; 
+            p1.stamina = 100; p2.stamina = 100;
+            p1.choice = null; p2.choice = null;
+            p1.yOffset = 0; p1.rotation = 0; p1.falling = false;
+            p2.yOffset = 0; p2.rotation = 0; p2.falling = false;
+            bananas = []; fartParticles = [];
+            rpsTimer = RPS_INTERVAL;
+            stockTimer = 0;
+            document.getElementById('msg').style.display = 'none';
+            document.getElementById('rps-overlay').style.display = 'none';
+        }
+
+        function updateScoreUI() {
+            const d1 = document.getElementById('p1-dots').children;
+            const d2 = document.getElementById('p2-dots').children;
+            for(let i=0; i<2; i++) {
+                d1[i].className = i < p1.wins ? 'dot win' : 'dot';
+                d2[i].className = i < p2.wins ? 'dot win' : 'dot';
+            }
+        }
+
+        function p1Push() { if (state !== 'PLAYING') return; pos += p1.stamina > 20 ? 22 : 10; p1.stamina = Math.max(0, p1.stamina - 8); shake = 8; playHitSound(); }
+        function p1Skill() { 
+            if (state !== 'PLAYING' || p1.skillStocks <= 0) return; 
+            pos += 110; p1.skillStocks--; shake = 30; 
+            playFartSound();
+            createFartEffect(pos - BEETLE_OFFSET - 40, 260, true);
+        }
+        function p2Push() { if (state !== 'PLAYING') return; pos -= p2.stamina > 20 ? 22 : 10; p2.stamina = Math.max(0, p2.stamina - 8); shake = 8; playHitSound(); }
+        function p2Skill() { 
+            if (state !== 'PLAYING' || p2.skillStocks <= 0) return; 
+            pos -= 110; p2.skillStocks--; shake = 30; 
+            playFartSound();
+            createFartEffect(pos + BEETLE_OFFSET + 40, 260, false);
+        }
+
+        function createFartEffect(x, y, isP1) {
+            for(let i=0; i<15; i++) {
+                fartParticles.push({
+                    x: x, y: y,
+                    vx: isP1 ? -Math.random()*10 - 5 : Math.random()*10 + 5,
+                    vy: (Math.random()-0.5)*10,
+                    size: Math.random()*20 + 10,
+                    life: 1.0,
+                    color: `rgba(200, 200, 150, ${Math.random()*0.5 + 0.3})`
+                });
+            }
+        }
+
+        function setChoice(p, m) {
+            if (state !== 'RPS') return;
+            if (p === 1) p1.choice = m; else p2.choice = m;
+            if (p1.choice && (gameMode === 'PVE' || p2.choice)) resolveRPS();
+        }
+
+        function resolveRPS() {
+            state = 'RESOLVING';
+            if (gameMode === 'PVE') {
+                const r = Math.random(); p2.choice = r < 0.33 ? '✂️' : (r < 0.66 ? '🪨' : '📜');
+            }
+            let win = (p1.choice === p2.choice) ? 0 :
+                      ((p1.choice === '🪨' && p2.choice === '✂️') || (p1.choice === '✂️' && p2.choice === '📜') || (p1.choice === '📜' && p2.choice === '🪨')) ? 1 : 2;
+            
+            const m = document.getElementById('msg');
+            m.style.display = 'block'; m.innerText = win === 0 ? "平手！" : (win === 1 ? "P1 獲勝！" : "P2 獲勝！");
+            if(win === 1) { pos += 130; playHitSound(); }
+            if(win === 2) { pos -= 130; playHitSound(); }
+
+            setTimeout(() => {
+                m.style.display = 'none'; document.getElementById('rps-overlay').style.display = 'none';
+                p1.choice = p2.choice = null;
+                if(state === 'RESOLVING') { state = 'PLAYING'; rpsTimer = RPS_INTERVAL; }
+            }, 1000);
+        }
+
+        function drawBeetle(x, color, isP1, yOff = 0, rot = 0) {
+            ctx.save();
+            ctx.translate(x, 260 + yOff + (Math.random()*shake - shake/2));
+            ctx.rotate(rot);
+            if (!isP1) ctx.scale(-1, 1);
+            
+            ctx.strokeStyle = "#111"; ctx.lineWidth = 4;
+            const legMove = (yOff === 0 && state !== 'MENU') ? Math.sin(performance.now()/100) * 10 : 0;
+            for(let i=0; i<3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-20 + i*20, 10);
+                ctx.lineTo(-30 + i*20 + (legMove * (i%2===0?1:-1)), 40);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.ellipse(0, 0, 60, 35, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#111";
+            ctx.beginPath(); ctx.ellipse(40, 0, 20, 18, 0, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = color; ctx.lineWidth = 10; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(50, 0); ctx.quadraticCurveTo(80, -20, 110, -60); ctx.stroke();
+            ctx.restore();
+        }
+
+        function animate(time) {
+            const dt = time - lastTime;
+            lastTime = time;
+            ctx.clearRect(0, 0, 800, 400);
+
+            ctx.fillStyle = "#1b3022"; ctx.fillRect(0,0,800,400);
+            ctx.fillStyle = "#5d4037"; ctx.fillRect(LOG_START, 310, LOG_WIDTH, 90);
+
+            fartParticles = fartParticles.filter(p => p.life > 0);
+            fartParticles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                p.life -= 0.02;
+                ctx.fillStyle = p.color.replace(')', `,${p.life})`);
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+            });
+
+            if (state === 'PLAYING') {
+                p1.stamina = Math.min(100, p1.stamina + 0.3);
+                p2.stamina = Math.min(100, p2.stamina + 0.35); 
+                document.getElementById('p1-stamina').style.width = p1.stamina + '%';
+                document.getElementById('p2-stamina').style.width = p2.stamina + '%';
+                document.getElementById('p1-stocks').innerText = `💨 x${p1.skillStocks}`;
+                document.getElementById('p2-stocks').innerText = `💨 x${p2.skillStocks}`;
+
+                stockTimer += dt;
+                if (stockTimer >= STOCK_AUTO_REFILL_INTERVAL) {
+                    p1.skillStocks++; p2.skillStocks++; stockTimer = 0;
+                }
+
+                bananaTimer += dt;
+                if(bananaTimer > 3500) { 
+                    bananas.push({ x: LOG_START + 50 + Math.random()*(LOG_WIDTH-100), y: -50, landed: false, timer: 5000 }); 
+                    bananaTimer = 0; 
+                }
+
+                bananas = bananas.filter(b => b.timer > 0);
+                bananas.forEach((b, i) => {
+                    if (b.y < 285) { b.y += 4; } 
+                    else { b.landed = true; b.timer -= dt; }
+                    ctx.globalAlpha = b.landed ? (b.timer / 5000) : 1.0;
+                    ctx.font = "30px Arial"; ctx.fillText("🍌", b.x-15, b.y);
+                    ctx.globalAlpha = 1.0;
+                    if (Math.abs(pos-BEETLE_OFFSET-b.x) < 40 && Math.abs(260-b.y) < 50) { p1.skillStocks++; bananas.splice(i, 1); }
+                    else if (Math.abs(pos+BEETLE_OFFSET-b.x) < 40 && Math.abs(260-b.y) < 50) { p2.skillStocks++; bananas.splice(i, 1); }
+                });
+
+                rpsTimer -= dt;
+                document.getElementById('timer-display').innerText = (Math.max(0, rpsTimer/1000)).toFixed(1) + "s";
+                if(rpsTimer <= 0) { state = 'RPS'; rpsDecisionTimer = 2000; document.getElementById('rps-overlay').style.display = 'flex'; }
+                
+                if(gameMode === 'PVE') {
+                    let p2Urgency = (pos - LOG_START) / LOG_WIDTH; 
+                    let pushChance = 0.05 + (1 - p2Urgency) * 0.08; 
+                    
+                    if(Math.random() < pushChance) p2Push();
+
+                    if(p2.skillStocks > 0) {
+                        if(p2.stamina < 30 && Math.random() < 0.02) p2Skill();
+                        if(pos < LOG_START + 150 && Math.random() < 0.05) p2Skill();
+                    }
+                }
+
+                if(pos > LOG_END-20) roundOver("P1"); if(pos < LOG_START+20) roundOver("P2");
+
+            } else if (state === 'RPS') {
+                rpsDecisionTimer -= dt;
+                document.getElementById('rps-countdown-ui').innerText = (Math.max(0, rpsDecisionTimer/1000)).toFixed(1);
+                if(rpsDecisionTimer <= 0) {
+                    if(!p1.choice) { const r = Math.random(); p1.choice = r<0.33?'✂️':(r<0.66?'🪨':'📜'); }
+                    if(!p2.choice) { const r = Math.random(); p2.choice = r<0.33?'✂️':(r<0.66?'🪨':'📜'); }
+                    resolveRPS();
+                }
+            } else if (state === 'RESOLVING' || state === 'END') {
+                if (p1.falling) { p1.yOffset += 8; p1.rotation -= 0.1; }
+                if (p2.falling) { p2.yOffset += 8; p2.rotation += 0.1; }
+
+                if (state === 'END') {
+                    particles.forEach(p => {
+                        p.x += p.vx; p.y += p.vy;
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(p.x, p.y, p.size, p.size);
+                    });
+                }
+            }
+
+            drawBeetle(pos - BEETLE_OFFSET, "#4b3621", true, p1.yOffset, p1.rotation);
+            drawBeetle(pos + BEETLE_OFFSET, "#1a1a1a", false, p2.yOffset, p2.rotation);
+
+            if (shake > 0) shake *= 0.9;
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function roundOver(winner) {
+            state = 'RESOLVING';
+            if(winner === "P1") {
+                p2.falling = true;
+                p1.wins++;
+            } else {
+                p1.falling = true;
+                p2.wins++;
+            }
+            
+            playFallSound();
+            updateScoreUI();
+            
+            const msg = document.getElementById('msg');
+            msg.style.display = 'block';
+
+            if(p1.wins >= 2 || p2.wins >= 2) {
+                setTimeout(() => finalVictory(winner), 1000);
+            } else {
+                msg.innerText = `${winner} 拿下這一局！`;
+                setTimeout(() => {
+                    resetRound();
+                }, 2000);
+            }
+        }
+
+        function finalVictory(winner) {
+            state = 'END';
+            playVictoryFanfare();
+            particles = []; 
+            for(let i=0; i<100; i++) {
+                particles.push({
+                    x: Math.random() * 800, y: -20,
+                    vx: (Math.random()-0.5) * 12, vy: Math.random() * 6 + 3,
+                    color: `hsl(${Math.random()*360}, 100%, 50%)`,
+                    size: Math.random() * 8 + 4
+                });
+            }
+            const m = document.getElementById('msg');
+            m.style.display = 'block';
+            m.innerHTML = `
+                <span class="congrats-line">~ 晶湛牙醫 祝您健康愉快 ~</span>
+                <h1 style="margin:0; font-size:40px; color:var(--gold);">${winner} 最終勝利！</h1>
+                <button class="start-btn" onpointerdown="restartGame()">回主選單</button>
+            `;
+        }
+
+        lastTime = performance.now();
+        animationId = requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
